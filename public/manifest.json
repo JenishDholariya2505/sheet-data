@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Practice ",
+  "description": "Practice Chrome Extension",
+  "version": "1.0.0",
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage",
+    "alarms",
+    "notifications",
+    "webRequest",
+    "webRequestBlocking"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_title": "Practice",
+    "default_popup": "index.html"
+  },
+  "icons": {
+    "16": "logo192.png",
+    "48": "logo192.png",
+    "128": "logo192.png"
+  }
+}

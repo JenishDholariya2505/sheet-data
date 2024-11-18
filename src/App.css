@@ -1,0 +1,18 @@
+.App {
+  text-align: center;
+  width: 500px; /* Set a larger width */
+  height: 100%; /* Set a larger height */
+  padding: 20px;
+  background-color: #fff;
+  color: #282c34;
+}
+
+.App-header {
+  font-size: 24px; /* Make the header text larger */
+}
+
+button {
+  font-size: 18px; /* Make buttons larger */
+  padding: 10px 20px;
+  margin: 10px;
+}
