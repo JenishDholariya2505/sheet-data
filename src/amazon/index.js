@@ -7,7 +7,8 @@ const AmazonPage = (props) => {
   const { details } = props;
   const url = details?.fullUrl || "";
   const [values, setValues] = useState(null);
-
+  const [helliumTenStatus, setHelliumTenStatus] = useState(false);
+  const [loading, setLoading] = useState(true);
   const parseURL = (urlString) => {
     try {
       const url = new URL(urlString);
@@ -34,6 +35,7 @@ const AmazonPage = (props) => {
   const ASIN = parsedURL?.pathname;
 
   const getDomDetails = () => {
+    setLoading(true);
     chrome.runtime.sendMessage("get_dom", (response) => {
       if (chrome.runtime.lastError) {
         console.error(chrome.runtime.lastError);
@@ -41,12 +43,20 @@ const AmazonPage = (props) => {
         const html = response?.html;
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
-
-        setValues(
-          doc.getElementById("h10-product-score")?.childNodes?.[0]
-            ?.childNodes?.[0].childNodes?.[1]?.childNodes?.[1]?.childNodes?.[0]
-            ?.childNodes?.[0]?.childNodes?.[1]?.childNodes?.[0]?.data
-        );
+        const Id = doc.getElementById("h10-product-score");
+        console.log(Id, "IdIdId");
+        if (Id) {
+          setValues(
+            Id?.childNodes?.[0]?.childNodes?.[0].childNodes?.[1]
+              ?.childNodes?.[1]?.childNodes?.[0]?.childNodes?.[0]
+              ?.childNodes?.[1]?.childNodes?.[0]?.data
+          );
+          setHelliumTenStatus(true);
+          setLoading(false);
+        } else {
+          setLoading(false);
+          setHelliumTenStatus(false);
+        }
       }
     });
   };
@@ -84,14 +94,20 @@ const AmazonPage = (props) => {
   return (
     <div>
       <h1>Amazon</h1>
-      <Space direction="vertical" justify="start">
-        <Text>Sheet URL: {SHEET_URL}</Text>
-        <Text type="secondary">ASIN: {ASIN}</Text>
-        <Text type="success">Value: {values || 0}</Text>
-        <Button onClick={postData} type="primary">
-          Update Sheet
-        </Button>
-      </Space>
+      {!loading && !helliumTenStatus ? (
+        <Text type="danger">Hellium 10 not found</Text>
+      ) : (
+        <>
+          <Space direction="vertical" justify="start">
+            <Text>Sheet URL: {SHEET_URL}</Text>
+            <Text type="secondary">ASIN: {ASIN}</Text>
+            <Text type="success">Value: {values || 0}</Text>
+            <Button onClick={postData} type="primary">
+              Update Sheet
+            </Button>
+          </Space>
+        </>
+      )}
     </div>
   );
 };
