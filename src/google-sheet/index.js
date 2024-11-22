@@ -49,7 +49,7 @@ const GoogleSheetPage = (props) => {
   const postData = async (ASIN, url, values, values_) => {
     message.destroy();
     message.loading("Updating data...");
-    const apiUrl = "http://localhost:5500/update-sheet-data";
+    const apiUrl = "https://google-sheet-apis.onrender.com/update-sheet-data";
     const queryParams = `?url=${url}`;
     const data = {
       asin: ASIN,
@@ -58,7 +58,6 @@ const GoogleSheetPage = (props) => {
         ...values_,
       },
     };
-    console.log(data, "data");
 
     try {
       const result = await axios.post(`${apiUrl}${queryParams}`, data);
