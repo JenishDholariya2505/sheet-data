@@ -86,3 +86,92 @@ try {
 //   // Wait for navigation to complete and then execute logPageDetails
 //   setTimeout(logPageDetails, 5000); // Adjust timeout as needed
 // }
+
+// Example: Get page title and a specific DOM element
+const pageTitle = document.title;
+const specificElement = document.querySelector("#elementId"); // Replace with your selector
+
+// Send data back to the background script or log it
+chrome.runtime.sendMessage({
+  type: "DOM_DATA",
+  title: pageTitle,
+  elementText: specificElement
+    ? specificElement.innerText
+    : "Element not found",
+});
+
+// Example of extracting some data from the DOM
+// Extract some data from the DOM (example: page title)
+const extractedData = document;
+
+// Send data back to the background script
+chrome.runtime.sendMessage({ type: "EXTRACTED_DATA", data: extractedData });
+
+// content.js
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "updateReactDOM") {
+    // Find your React app's root element
+    const rootElement = document.getElementById("root"); // or other React root ID
+    if (rootElement) {
+      // Trigger a DOM update or call your React component's state update
+      const event = new CustomEvent("updateReactState", {
+        detail: message.data,
+      });
+      rootElement.dispatchEvent(event); // Dispatch event to update the React state
+    }
+  }
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "CHANGE_TAB_URL") {
+    const newUrl = message.url;
+
+    // Change the current tab's URL
+    // window.location.href = newUrl; // This will navigate the page to the new URL
+
+    // If you want to get data from the DOM of the page before redirecting
+    const pageData = {
+      title: document.title,
+      body: document.body.innerText,
+      url: window.location.href,
+    };
+
+    console.log(pageData, "pageDatapageDatapageDatapageDatapageData");
+
+    // Send back the DOM data (if you need to)
+    sendResponse(pageData);
+  }
+  return true; // Keeps the message channel open for async response
+});
+
+// content.js
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "GET_DOM") {
+    // Extract data from the DOM
+    const domData = {
+      title: document.title,
+      bodyText: document.body.innerText,
+      url: window.location.href,
+    };
+
+    // Send data to the React app
+    window.postMessage(
+      {
+        type: "FROM_EXTENSION",
+        payload: domData,
+      },
+      window.origin
+    ); // Ensure to send data to the current window
+  }
+});
+
+// content.js
+const currentTabDOM = document.documentElement; // Accessing the DOM
+console.log(currentTabDOM);
+
+// content.js
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "getDOM") {
+    sendResponse({ dom: document.body.innerHTML });
+  }
+});

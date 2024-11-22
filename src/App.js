@@ -6,12 +6,22 @@ import AmazonPage from "./amazon";
 import GoogleSheetPage from "./google-sheet";
 
 function App() {
-  const [urlData, setUrlData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [urlData, setUrlData] = useState({
+    type: "google_sheets",
+    details: {
+      sheetId: "1c3c9Z9EHxbTzqQk-wrqCWq-52xREkJG-xRToX8BepIs",
+      gid: "0",
+      isValid: true,
+      fullUrl:
+        "https://docs.google.com/spreadsheets/d/1c3c9Z9EHxbTzqQk-wrqCWq-52xREkJG-xRToX8BepIs/edit?gid=0#gid=0",
+      apiEndpoint:
+        "https://sheets.googleapis.com/v4/spreadsheets/1c3c9Z9EHxbTzqQk-wrqCWq-52xREkJG-xRToX8BepIs",
+      shareableUrl:
+        "https://docs.google.com/spreadsheets/d/1c3c9Z9EHxbTzqQk-wrqCWq-52xREkJG-xRToX8BepIs/edit?usp=sharing",
+    },
+  });
+  const [loading, setLoading] = useState(false);
 
-  /**
-   * URL Type identifier and parser
-   */
   const identifyURL = (url) => {
     try {
       // Create URL object for parsing
@@ -124,7 +134,8 @@ function App() {
   };
 
   useEffect(() => {
-    getDomDetails();
+    // getDomDetails();
+    identifyURL(urlData?.details?.fullUrl);
     return () => {};
   }, []);
 

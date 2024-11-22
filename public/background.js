@@ -45,7 +45,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         },
         (result) => {
           if (chrome.runtime.lastError) {
-            console.error(chrome.runtime.lastError);
           } else {
             sendResponse(result[0].result);
           }
@@ -66,8 +65,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else {
       trackedProducts[url] = { targetPrice, latestPrice: null };
     }
-
-    console.log(`Started tracking ${url} for price drop to ${targetPrice}`);
   }
 
   if (message.action === "PRICE_FOUND") {
@@ -119,6 +116,15 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     });
   }
 });
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  // Example: Check if the page is fully loaded
+  if (changeInfo.status === "complete") {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ["content.js"],
+    });
+  }
+});
 
 // to redirect to any url
 // chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -136,7 +142,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 // chrome.webRequest.onBeforeRequest.addListener(
 //   (details) => {
-//     console.log(details, "details");
+
 //     if (details.url.includes("P8GwlRgVaLhfMMMp11bRvu2Hd+hvlMvucjvjc2D0wOs")) {
 //       return { cancel: true }; // Block requests to 'ads.example.com'
 //     }
@@ -151,10 +157,78 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 //   message: "Notification message content.",
 // });
 
-chrome.webRequest.onBeforeRequest.addListener(
-  function (details) {
-    console.log("Request made to:", details.url);
-    // You can also analyze or filter requests here if needed
-  },
-  { urls: ["<all_urls>"] }
-);
+// chrome.webRequest.onBeforeRequest.addListener(
+//   function (details) {
+//     // You can also analyze or filter requests here if needed
+//   },
+//   { urls: ["<all_urls>"] }
+// );
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "CHANGE_TAB_URL") {
+    chrome.tabs.update({ url: message.url }, (tab) => {
+      chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
+        if (tabId === tab.id && changeInfo.status === "complete") {
+          // Inject content script to extract DOM data
+
+          chrome.tabs.onUpdated.removeListener(listener);
+        }
+      });
+    });
+
+    return true; // Keep the message channel open for asynchronous response
+  }
+});
+
+// background.js
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete") {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ["content.js"], // Inject content script when the tab is updated
+    });
+  }
+});
+
+// background.js
+chrome.action.onClicked.addListener((tab) => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const currentTab = tabs[0];
+
+    // Send a message to content script to manipulate DOM
+    chrome.scripting.executeScript({
+      target: { tabId: currentTab.id },
+      func: () => {
+        const currentTabDOM = document.documentElement;
+      },
+    });
+  });
+});
+
+// background.js
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "GET_DOM_CONTENT") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const currentTab = tabs[0];
+
+      chrome.scripting.executeScript({
+        target: { tabId: currentTab.id },
+        func: () => {
+          const currentTabDOM = document.documentElement;
+          chrome.runtime.sendMessage({
+            type: "DOM_CONTENT",
+            content: currentTabDOM.outerHTML, // Send the DOM as a string
+          });
+        },
+      });
+    });
+  }
+});
+
+// background.js
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: "getDom",
+    title: "Get DOM of the Current Tab",
+    contexts: ["all"],
+  });
+});

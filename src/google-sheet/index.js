@@ -1,138 +1,271 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
 import {
   Button,
   Card,
   Col,
+  Empty,
+  Form,
   Input,
   message,
   Row,
   Space,
-  Spin,
   Table,
   Tag,
 } from "antd";
-import Title from "antd/es/typography/Title";
-import { Icon } from "@iconify/react/dist/iconify.js";
+import axios from "axios";
+import React, { useState } from "react";
 const GoogleSheetPage = (props) => {
   const { details } = props;
+  const [form] = Form.useForm();
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [columns, setColumns] = useState([]);
-  const url = details?.fullUrl || "";
-  const fetchData = async (sheetUrl = url) => {
+
+  const [tableLoading, setTableLoading] = useState(false);
+  const [keys, setKeys] = useState({
+    asin: "New ASIN",
+    price: "Price",
+  });
+
+  const handleCloseTab = () => {
+    setKeys({
+      asin: "New ASIN",
+      price: "Price",
+    });
+    // Robust tab closing using multiple methods
+    if (chrome?.tabs) {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.remove(tabs[0].id, () => {
+            // Optional: handle any errors
+            if (chrome.runtime.lastError) {
+              console.error(chrome.runtime.lastError);
+            }
+          });
+        }
+      });
+    } else if (window.close) {
+      // Fallback for popup windows
+      window.close();
+    }
+  };
+  const postData = async (ASIN, url, values, values_) => {
+    message.destroy();
+    message.loading("Updating data...");
+    const apiUrl = "http://localhost:5500/update-sheet-data";
+    const queryParams = `?url=${url}`;
+    const data = {
+      asin: ASIN,
+      [values_?.price]: parseInt(values?.replace(/[# ,]/g, ""), 10),
+      keys: {
+        ...values_,
+      },
+    };
+    console.log(data, "data");
+
     try {
-      setLoading(true);
-      setError(null);
-
-      const encodedUrl = encodeURIComponent(sheetUrl);
-      const response = await axios.get(
-        `http://localhost:3333/get-sheet-data?url=${encodedUrl}`
-      );
-      console.log(response, "response");
-
-      if (response.data && response.data.data) {
-        const headers = response.data.data[0] || [];
-
-        setColumns(Object.keys(headers));
-        setData(response.data.data);
-        message.success("Data loaded successfully");
+      const result = await axios.post(`${apiUrl}${queryParams}`, data);
+      if (result) {
+        message.destroy();
+        message.success("Data updated successfully");
+        setTableLoading(true);
+        fetchData(url, values_);
       }
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setError(err.message);
-      message.error("Failed to load data");
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      message.destroy();
+      message.error("Failed to post data");
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const getCurrentTab = async (ASIN, sheetUrl, values_) => {
+    try {
+      const queryOptions = { active: true, currentWindow: true };
+      const [tab] = await chrome.tabs.query(queryOptions);
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        function: () => document.documentElement.outerHTML,
+      });
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(result, "text/html");
+      const Id = doc.getElementById("h10-product-score");
+      if (Id) {
+        const values =
+          Id?.childNodes?.[0]?.childNodes?.[0].childNodes?.[1]?.childNodes?.[1]
+            ?.childNodes?.[0]?.childNodes?.[0]?.childNodes?.[1]?.childNodes?.[0]
+            ?.data;
 
-  const asin = columns?.filter((d) => d?.toLowerCase()?.includes("asin"))?.[0];
+        if (!values) {
+          setTimeout(async () => {
+            message.destroy();
+            message.warning("Retrying to get values...");
+            await getCurrentTab(ASIN, sheetUrl, values_);
+          }, 1000);
+        } else {
+          message.destroy();
+          postData(ASIN, sheetUrl, values, values_);
+        }
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
+
+  const handleChangeURL = (ASIN, sheetUrl, values) => {
+    message.loading("Redirecting...", 0);
+    const url_ = `https://www.amazon.com/dp/${ASIN}?url=${sheetUrl}`; // Replace with the desired URL
+    chrome.runtime.sendMessage(
+      { type: "CHANGE_TAB_URL", url: url_ },
+      (response) => {
+        message.destroy();
+        message.loading("Fetching values...", 0);
+        setTimeout(() => {
+          getCurrentTab(ASIN, sheetUrl, values);
+        }, 1000);
+      }
+    );
+  };
+
+  const fetchData = async (sheetUrl, values) => {
+    try {
+      setTableLoading(true);
+      const encodedUrl = encodeURIComponent(sheetUrl);
+      const response = await axios.get(
+        `https://google-sheet-apis.onrender.com/get-sheet-data?url=${encodedUrl}`
+      );
+      if (response.data && response.data.data) {
+        const record = response.data.data
+          ?.map((d) => ({
+            ASIN: d?.[values?.asin],
+            Price: d?.[values?.price],
+          }))
+          ?.filter((d) => !d?.Price);
+        if (record?.length > 0) {
+          handleChangeURL(record?.[0]?.ASIN, sheetUrl, values);
+        } else {
+          handleCloseTab();
+        }
+        setData(record);
+        setTableLoading(false);
+      } else {
+        setTableLoading(false);
+      }
+    } catch (err) {
+      setTableLoading(false);
+      message.error("Failed to load data");
+    } finally {
+      setTableLoading(false);
+    }
+  };
+
+  const onFinish = (values) => {
+    setKeys({
+      asin: values?.asin,
+      price: values?.price,
+    });
+
+    fetchData(values?.search, values);
+  };
 
   return (
     <>
-      <Row>
-        <Col span={24}>
-          <Input
-            placeholder="Enter Google Sheet URL"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onPressEnter={() => fetchData()}
-            allowClear
-          />
-        </Col>
-      </Row>
-      <Card
-        style={{
-          background: "#ffffff",
-          border: "1px solid #91caff",
-          boxShadow: "rgba(100, 100, 111, 0.2) 0px 7px 29px 0px",
-          marginTop: "10px",
-          marginBottom: "10px",
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={onFinish}
+        initialValues={{
+          search:
+            "https://docs.google.com/spreadsheets/d/1c3c9Z9EHxbTzqQk-wrqCWq-52xREkJG-xRToX8BepIs/edit?gid=0#gid=0",
+          ...keys,
         }}
-        bodyStyle={{
-          padding: "0 10px",
-        }}
+        style={{ margin: "auto" }}
       >
-        <Space direction="vertical" style={{ width: "100%" }}>
-          {error && (
-            <div style={{ color: "red", marginBottom: "16px" }}>
-              Error: {error}
-            </div>
-          )}
+        <Row gutter={16} align="bottom">
+          <Col span={6}>
+            <Form.Item
+              label="Search"
+              name="search"
+              rules={[{ required: true, message: "Google Sheet URL!" }]}
+            >
+              <Input placeholder="Enter search term" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item
+              label="ASIN"
+              name="asin"
+              rules={[{ required: true, message: "ASIN key!" }]}
+            >
+              <Input placeholder="ASIN Key" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item
+              label="Price"
+              name="price"
+              rules={[{ required: true, message: "Price key!" }]}
+            >
+              <Input placeholder="Price Key" style={{ width: "100%" }} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item>
+              <Button
+                style={{ position: "relative", top: "8px" }}
+                type="primary"
+                htmlType="submit"
+                block
+              >
+                Search
+              </Button>
+            </Form.Item>
+          </Col>
+        </Row>
+      </Form>
 
-          <Spin spinning={loading}>
-            <Table
-              columns={[
-                {
-                  title: "Actions",
-                  key: "actions",
-                  render: (_, record) => (
-                    <Space>
-                      <Icon
-                        onClick={() => {
-                          if (!asin) {
-                            message.destroy();
-                            message.warning("ASIN not found");
-                            return;
-                          }
-                          window.open(
-                            `https://www.amazon.com/dp/${record?.[asin]}?url=${url}`,
-                            "_blank"
-                          );
-                        }}
-                        width={60}
-                        icon="lineicons:amazon"
-                      />
-                    </Space>
-                  ),
-                },
-                ...columns?.map((d) => ({
-                  title: d,
-                  dataIndex: d,
-                  key: d,
-                  render: (e) => {
-                    return asin === d ? (
-                      <Tag color="blue">{e || "-"}</Tag>
-                    ) : (
-                      e || "-"
-                    );
+      {keys?.asin && keys?.price ? (
+        <>
+          <Card
+            style={{
+              background: "#ffffff",
+              border: "1px solid #91caff",
+              boxShadow: "rgba(100, 100, 111, 0.2) 0px 7px 29px 0px",
+              marginTop: "10px",
+              marginBottom: "10px",
+            }}
+            bodyStyle={{
+              padding: "0 10px",
+            }}
+          >
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <Table
+                loading={tableLoading}
+                columns={[
+                  {
+                    title: "ASIN",
+                    dataIndex: "ASIN",
+                    key: "ASIN",
+                    render: (e) => {
+                      return <Tag color="blue">{e || "-"}</Tag>;
+                    },
                   },
-                  width: "max-content", // Set width to max-content for each column
-                })),
-              ]}
-              dataSource={data}
-              scroll={{ x: "max-content" }}
-              pagination={false}
-            />
-          </Spin>
-        </Space>
-      </Card>
+                ]}
+                dataSource={data}
+                scroll={{ x: "max-content" }}
+                pagination={false}
+              />
+            </Space>
+          </Card>
+        </>
+      ) : (
+        <div style={{ height: "400px" }}>
+          <Empty
+            style={{
+              position: "absolute",
+              inset: 0,
+              margin: "auto",
+              width: "fit-content",
+              height: "fit-content",
+            }}
+          />
+        </div>
+      )}
     </>
   );
 };
