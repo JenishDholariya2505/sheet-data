@@ -124,21 +124,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "CHANGE_TAB_URL") {
-    const newUrl = message.url;
-
-    // Change the current tab's URL
-    // window.location.href = newUrl; // This will navigate the page to the new URL
-
-    // If you want to get data from the DOM of the page before redirecting
     const pageData = {
       title: document.title,
       body: document.body.innerText,
       url: window.location.href,
     };
 
-    console.log(pageData, "pageDatapageDatapageDatapageDatapageData");
-
-    // Send back the DOM data (if you need to)
     sendResponse(pageData);
   }
   return true; // Keeps the message channel open for async response
@@ -167,7 +158,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // content.js
 const currentTabDOM = document.documentElement; // Accessing the DOM
-console.log(currentTabDOM);
 
 // content.js
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

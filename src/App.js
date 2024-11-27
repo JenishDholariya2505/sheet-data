@@ -4,6 +4,7 @@ import { Col, Divider, Empty, Row, Spin, Tag, Typography } from "antd";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import AmazonPage from "./amazon";
 import GoogleSheetPage from "./google-sheet";
+import Paragraph from "antd/es/typography/Paragraph";
 
 function App() {
   const [urlData, setUrlData] = useState({
@@ -13,7 +14,7 @@ function App() {
       gid: "0",
       isValid: true,
       fullUrl:
-        "https://docs.google.com/spreadsheets/d/1c3c9Z9EHxbTzqQk-wrqCWq-52xREkJG-xRToX8BepIs/edit?gid=0#gid=0",
+        "https://docs.google.com/spreadsheets/d/1yIYJXR02iyTmwcx7mPeN2HWIvhigF8hKiSFcHepf95A/edit?th=1&psc=1&gid=1020242504#gid=1020242504",
       apiEndpoint:
         "https://sheets.googleapis.com/v4/spreadsheets/1c3c9Z9EHxbTzqQk-wrqCWq-52xREkJG-xRToX8BepIs",
       shareableUrl:
@@ -121,18 +122,6 @@ function App() {
     }
   };
 
-  const getDomDetails = () => {
-    chrome.runtime.sendMessage("get_dom", (response) => {
-      if (chrome.runtime.lastError) {
-        setLoading(false);
-        setUrlData(null);
-      } else {
-        setUrlData(identifyURL(response?.url));
-        setLoading(false);
-      }
-    });
-  };
-
   useEffect(() => {
     // getDomDetails();
     identifyURL(urlData?.details?.fullUrl);
@@ -178,6 +167,14 @@ function App() {
                 >
                   {urlData?.type || "-"}
                 </Tag>
+
+                <Paragraph
+                  copyable={{
+                    text: "extension-project@glossy-attic-398713.iam.gserviceaccount.com",
+                  }}
+                >
+                  Copy Email
+                </Paragraph>
               </Col>
             </Row>
             <Divider style={{ margin: "10px 0" }} />

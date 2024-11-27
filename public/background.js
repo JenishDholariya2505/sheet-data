@@ -167,11 +167,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "CHANGE_TAB_URL") {
     chrome.tabs.update({ url: message.url }, (tab) => {
       chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
-        if (tabId === tab.id && changeInfo.status === "complete") {
-          // Inject content script to extract DOM data
+        // if (tabId === tab.id && changeInfo.status === "complete") {
+        //   // Inject content script to extract DOM data
 
-          chrome.tabs.onUpdated.removeListener(listener);
-        }
+        // }
+        chrome.tabs.onUpdated.removeListener(listener);
       });
     });
 

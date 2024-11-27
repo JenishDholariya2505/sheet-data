@@ -20,8 +20,8 @@ const GoogleSheetPage = (props) => {
 
   const [tableLoading, setTableLoading] = useState(false);
   const [keys, setKeys] = useState({
-    asin: "New ASIN",
-    price: "Price",
+    asin: "ASIN",
+    price: "Sales",
   });
 
   const handleCloseTab = () => {
@@ -53,7 +53,7 @@ const GoogleSheetPage = (props) => {
     const queryParams = `?url=${url}`;
     const data = {
       asin: ASIN,
-      [values_?.price]: parseInt(values?.replace(/[# ,]/g, ""), 10),
+      [values_?.price]: values,
       keys: {
         ...values_,
       },
@@ -73,7 +73,7 @@ const GoogleSheetPage = (props) => {
     }
   };
 
-  const getCurrentTab = async (ASIN, sheetUrl, values_) => {
+  const getCurrentTab = async (ASIN, sheetUrl, values__) => {
     try {
       const queryOptions = { active: true, currentWindow: true };
       const [tab] = await chrome.tabs.query(queryOptions);
@@ -81,25 +81,36 @@ const GoogleSheetPage = (props) => {
         target: { tabId: tab.id },
         function: () => document.documentElement.outerHTML,
       });
+
       const parser = new DOMParser();
       const doc = parser.parseFromString(result, "text/html");
+
       const Id = doc.getElementById("h10-product-score");
+
       if (Id) {
-        const values =
-          Id?.childNodes?.[0]?.childNodes?.[0].childNodes?.[1]?.childNodes?.[1]
-            ?.childNodes?.[0]?.childNodes?.[0]?.childNodes?.[1]?.childNodes?.[0]
-            ?.data;
+        const values_ =
+          Id?.getElementsByClassName("sc-gZdaQk jFTCxu")?.[0]?.childNodes;
+        const values_other =
+          Id?.getElementsByClassName("sc-cNVUXh ggrziX")?.[0]?.childNodes;
+
+        const values = values_?.[0]?.data || values_other?.[0]?.data || null;
 
         if (!values) {
           setTimeout(async () => {
             message.destroy();
             message.warning("Retrying to get values...");
-            await getCurrentTab(ASIN, sheetUrl, values_);
-          }, 1000);
+            await getCurrentTab(ASIN, sheetUrl, values__);
+          }, 2000);
         } else {
           message.destroy();
-          postData(ASIN, sheetUrl, values, values_);
+          postData(ASIN, sheetUrl, values, values__);
         }
+      } else {
+        setTimeout(async () => {
+          message.destroy();
+          message.warning("Retrying to get values...");
+          await getCurrentTab(ASIN, sheetUrl, values__);
+        }, 2000);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -108,17 +119,21 @@ const GoogleSheetPage = (props) => {
 
   const handleChangeURL = (ASIN, sheetUrl, values) => {
     message.loading("Redirecting...", 0);
-    const url_ = `https://www.amazon.com/dp/${ASIN}?url=${sheetUrl}`; // Replace with the desired URL
-    chrome.runtime.sendMessage(
-      { type: "CHANGE_TAB_URL", url: url_ },
-      (response) => {
-        message.destroy();
-        message.loading("Fetching values...", 0);
-        setTimeout(() => {
-          getCurrentTab(ASIN, sheetUrl, values);
-        }, 1000);
-      }
-    );
+    const url_ = `https://www.amazon.com/dp/${ASIN}?url=${sheetUrl}`;
+    console.log(url_, "url_");
+
+    try {
+      chrome.runtime.sendMessage({ type: "CHANGE_TAB_URL", url: url_ });
+      message.destroy();
+      message.loading("Fetching values...", 0);
+      setTimeout(() => {
+        getCurrentTab(ASIN, sheetUrl, values);
+      }, 1000);
+    } catch (error) {
+      console.log(error);
+      message.destroy();
+      message.error("Failed to redirect");
+    }
   };
 
   const fetchData = async (sheetUrl, values) => {
@@ -136,7 +151,9 @@ const GoogleSheetPage = (props) => {
           }))
           ?.filter((d) => !d?.Price);
         if (record?.length > 0) {
-          handleChangeURL(record?.[0]?.ASIN, sheetUrl, values);
+          setTimeout(() => {
+            handleChangeURL(record?.[0]?.ASIN, sheetUrl, values);
+          }, 500);
         } else {
           handleCloseTab();
         }
@@ -170,7 +187,7 @@ const GoogleSheetPage = (props) => {
         onFinish={onFinish}
         initialValues={{
           search:
-            "https://docs.google.com/spreadsheets/d/1c3c9Z9EHxbTzqQk-wrqCWq-52xREkJG-xRToX8BepIs/edit?gid=0#gid=0",
+            "https://docs.google.com/spreadsheets/d/1yIYJXR02iyTmwcx7mPeN2HWIvhigF8hKiSFcHepf95A/edit?th=1&psc=1&gid=1020242504#gid=1020242504",
           ...keys,
         }}
         style={{ margin: "auto" }}
